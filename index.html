@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>💊 Medicine Reminder App</title>
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/128/2547/2547034.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg,#f3e7e9 0%,#e3eeff 100%);
+      margin: 0; min-height: 100vh;
+    }
+    .container {
+      max-width: 410px;
+      margin: 38px auto 0 auto;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 4px 30px #abb8df59;
+      padding: 35px 25px 25px 25px;
+    }
+    h2 { text-align: center; color: #1976d2; margin-bottom: 11px; letter-spacing:1px; }
+    .subtitle { text-align:center; color: #8ca4c8; margin-bottom: 16px; font-size:13.5px; }
+    label { font-weight: bold; margin-top: 16px; display: block; color: #3a457d; }
+    input, button {
+      font-size: 17px; padding: 8px; border-radius: 5px; border: 1.1px solid #bcc4ef; width: 100%; margin: 6px 0 12px 0; transition: border 0.2s;
+    }
+    input:focus { border:1.1px solid #1976d2; outline: none; }
+    button {
+      background: linear-gradient(90deg,#1976d2 60%,#2b90ff 100%);
+      color: #fff; border:none; cursor:pointer; font-weight: 600;
+      margin-top:12px; box-shadow: 0 2px 7px #69aaff36;
+      transition: background .13s;
+    }
+    button:active { background: linear-gradient(90deg,#1060ae 80%,#176bbc 100%); }
+    ul { padding: 0; list-style: none; margin-top: 23px; }
+    li {
+      margin-bottom: 12px; display: flex; align-items: center;
+      background: #e8f0fe; border-radius: 8px; box-shadow: 0 1px 6px #e9eafd78;
+      padding: 11px 13px 11px 13px; transition: 0.24s background;
+    }
+    .rem-due-soon { background: #fff8e1 !important; color: #d18300 !important; border: 1px solid #ffe082;}
+    .rem-triggered { background: #fce4ec !important; color: #880040 !important; border: 1px solid #f48fb1; text-decoration: line-through; opacity: 0.66; }
+    .med-img { width: 29px; height:29px; margin-right: 12px; vertical-align: middle; filter: drop-shadow(0px 3px 2px #bbc4f516);}
+    .delete { background: #f4511e; color: #fff; border: none; border-radius: 5px; padding: 3px 13px; margin-left: 17px; cursor: pointer; font-size: 16px; box-shadow: 0 2px 6px #f38e6a30;}
+    .delete:hover { background:#ba332b; }
+    .rem-date { font-size: 15.2px; font-weight: 500; margin-left:10px; color: #6080ba; }
+    .iconNotif {width:20px; height:20px; vertical-align:middle; margin-bottom:3px;}
+    @media (max-width:530px) {
+      .container { max-width:96vw; padding:17px 3vw 24px 3vw; box-shadow:none;}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>💊 Medicine Reminder</h2>
+    <div class="subtitle">
+      Stay healthy,<br>never miss a dose.<br>
+    </div>
+    <form id="reminder-form">
+      <label for="med">Medicine Name</label>
+      <input id="med" type="text" required placeholder="e.g. Paracetamol or B12 Injection">
+      <label for="datetime">Date & Time</label>
+      <input id="datetime" type="datetime-local" required min="" step="60">
+      <button type="submit">Add Reminder</button>
+    </form>
+    <ul id="reminder-list"></ul>
+  </div>
+  <!-- Professional ringtone bell (royalty-free, can be changed) -->
+  <audio id="alarm" src="https://cdn.pixabay.com/audio/2022/03/15/audio_eec3e073df.mp3"></audio>
+  <script>
+    if ('Notification' in window) Notification.requestPermission();
+    document.getElementById('datetime').min = new Date(Date.now() - 60*1000).toISOString().slice(0,16);
+    let reminders = [];
+    const list = document.getElementById('reminder-list');
+    const alarm = document.getElementById('alarm');
+    const iconURL = "https://cdn-icons-png.flaticon.com/128/2547/2547034.png";
+    function niceDate(dtstr) {
+      const d = new Date(dtstr);
+      return d.toLocaleString(undefined,{ dateStyle:"medium", timeStyle:"short"});
+    }
+    document.getElementById('reminder-form').onsubmit = function(e) {
+      e.preventDefault();
+      const med = medInput.value.trim();
+      const datetime = datetimeInput.value;
+      if (!med || !datetime) return;
+      reminders.push({med, datetime, triggered: false});
+      render();
+      medInput.value = "";
+      datetimeInput.value = "";
+    }
+    const medInput = document.getElementById('med');
+    const datetimeInput = document.getElementById('datetime');
+    function render() {
+      list.innerHTML = reminders.map((rem, i) => {
+        let liClass = "";
+        let pillImg = `<img class="med-img" src="${iconURL}" alt="pill">`;
+        if(rem.triggered) liClass = 'rem-triggered';
+        else if(!rem.triggered && timeTo(rem.datetime) <= 60*1000 && timeTo(rem.datetime)>0) liClass = 'rem-due-soon';
+        return `<li class="${liClass}">
+          ${pillImg}
+          <span style="font-size:18px;font-weight:700;">${rem.med}</span>
+          <span class="rem-date">
+            <img class="iconNotif" src="https://cdn-icons-png.flaticon.com/128/1828/1828817.png">
+            ${niceDate(rem.datetime)}
+          </span>
+          <button class="delete" onclick="deleteReminder(${i})">✖</button>
+        </li>`
+      }).join('');
+    }
+    window.deleteReminder = function(i) { reminders.splice(i,1); render(); }
+    function timeTo(dt) { return new Date(dt).getTime() - Date.now(); }
+    setInterval(function() {
+      for(let rem of reminders) {
+        if(!rem.triggered && Date.now() >= new Date(rem.datetime).getTime()) {
+          rem.triggered = true;
+          showAlert(rem.med);
+        }
+      }
+      render();
+    }, 1000);
+    function showAlert(med) {
+      if('Notification' in window && Notification.permission === "granted"){
+        new Notification("Medicine Reminder", {
+          body: `Time to take: ${med} 💊`,
+          icon: iconURL,
+          badge: iconURL
+        });
+      }
+      alert(`⏰ It's time to take: ${med}!`);
+      alarm.play();
+    }
+  </script>
+</body>
+</html>
